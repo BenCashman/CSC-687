@@ -1,6 +1,6 @@
 from json import dumps
 
-from bc.src.blockchain import Blockchain
+from src.blockchain import Blockchain
 
 '''
 This class implements the necessary function for maintaining a blockchain, validating blocks, and generally
