@@ -5,7 +5,7 @@ from requests import get, post
 from socket import gethostbyname, gethostname
 from sys import argv
 
-from bc.src.server import Server
+from src.server import Server
 
 '''
 This code represents the public facing interface for a TrustNet network node.  It uses a Server object
