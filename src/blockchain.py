@@ -1,6 +1,6 @@
 from json import dumps
-from bc.src.block import Block
-from bc.src.validator import Validator
+from src.block import Block
+from src.validator import Validator
 from time import time
 
 '''
