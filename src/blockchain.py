@@ -27,8 +27,9 @@ class Blockchain:
         self.chain.append(block)
         return True
      
-    def getBlock(self, index):  # todo implement
-        pass
+    def getBlock(self, index):
+        if index <= self.lastBlock.index:
+            return dumps(self.chain[index].__dict__)
        
     def getChain(self):
         Validator.checkChainValidity(self.chain)
@@ -37,7 +38,7 @@ class Blockchain:
         for block in self.chain:
             data.append(block.__dict__)
         return dumps({ 'length' : len(data), 'chain' : data })
-
+    
     @property
     def lastBlock(self):
         return self.chain[-1]

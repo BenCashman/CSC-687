@@ -40,13 +40,3 @@ class Server:
     # ==============================================================================
     def getTransactions(self):
         return "/transaction:getTransactions(" + dumps(self.transactions) + ")", 200
-
-'''
-hints:
-    req = request.get_json()
-    rc = 200
-    if req['node'] not in nodes:
-        nodes.add(req['node'])
-        rc = 201
-    return dumps(list(nodes)) + '\n', rc
-'''

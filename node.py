@@ -71,7 +71,7 @@ if len(argv) > 3:
 server = Server()
 
 # ==============================================================================
-# public interface; ReSTful endpoints mostly following CRUD terminology and usage
+# ReSTful endpoints specific to server, following CRUD terminology and usage
 # ==============================================================================
 app = Flask(__name__)
 
@@ -91,6 +91,9 @@ def blockIndexGET(index):
 def minePOST():
     return server.createNewBlock(request)
 
+# ==============================================================================
+# ReSTful endpoints specific to nodes, following CRUD terminology and usage
+# ==============================================================================
 @app.route('/node', methods=['GET'])
 def nodeGET():
     return dumps(list(nodes)), 200
