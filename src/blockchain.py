@@ -29,7 +29,9 @@ class Blockchain:
      
     def getBlock(self, index):
         if index <= self.lastBlock.index:
-            return dumps(self.chain[index].__dict__)
+            return dumps(self.chain[index].__dict__), 200
+        else:
+            return 'invalid index {}'.format(index), 400
        
     def getChain(self):
         Validator.checkChainValidity(self.chain)

@@ -19,6 +19,8 @@ class Server:
         pass
 
     def readSingleBlock(self, index):  # todo implement
+        block = self.blockchain.getBlock(index)
+        return 
         pass
 
     def createNewBlock(self, request):  # todo implement
