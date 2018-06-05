@@ -4,14 +4,19 @@ allows a pluggable interface so that different subclass implementations of these
 as the need for them may arise.
 '''
 
-class Validator:  # todo needs testcases and implementation
+class Validator:
     @staticmethod
-    def proofOfWord(block):  # todo implement
-        pass
+    def proofOfWork(block, difficulty):
+        block.nonce = 0
+        proof = block.computeHash()
+        while not proof.startswith('0' * difficulty):
+            block.nonce += 1
+            proof = block.computeHash()
+        return proof
     
     @staticmethod
-    def isValidProof(block, proof):  # todo implement
-        pass
+    def isValidProof(block, proof, difficulty):
+        return proof.startswith('0' * difficulty ) and proof == block.computeHash()
     
     @staticmethod
     def checkChainValidity(chain):  # todo implement
