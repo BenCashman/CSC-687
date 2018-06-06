@@ -28,7 +28,7 @@ class Blockchain:
         return True
      
     def getBlock(self, index):
-        if index <= self.lastBlock.index:
+        if index > 0 and index <= self.lastBlock.index:
             return dumps(self.chain[index].__dict__), 200
         else:
             return 'invalid index {}'.format(index), 400
@@ -38,7 +38,8 @@ class Blockchain:
         Validator.consensus(self.chain)
         data = []
         for block in self.chain:
-            data.append(block.__dict__)
+            if not block.sequence == 0:  # do not include genesis block
+                data.append(block.__dict__)
         return dumps({ 'length' : len(data), 'chain' : data })
     
     @property

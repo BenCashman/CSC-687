@@ -12,18 +12,18 @@ class Server:
         self.transactions = {}
         self.blockchain = Blockchain()
     
-    def readAllBlocks(self):  # todo implement
-        pass
+    def readAllBlocks(self):
+        blocks = self.blockchain.getChain()
+        return dumps(blocks), 200
 
     def updateWithNewBlock(self, request):  # todo implement
         pass
 
-    def readSingleBlock(self, index):  # todo implement
+    def readSingleBlock(self, index):
         block = self.blockchain.getBlock(index)
-        return 
-        pass
+        return dumps(block), 200
 
-    def createNewBlock(self, request):  # todo implement
+    def createNewBlock(self):  # todo implement
         pass
 
     def createNewTransaction(self, data):
