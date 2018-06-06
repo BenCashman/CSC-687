@@ -89,7 +89,7 @@ def blockIndexGET(index):
 
 @app.route('/mine', methods=['POST'])
 def minePOST():
-    return server.createNewBlock(request)
+    return server.createNewBlock()
 
 # ==============================================================================
 # ReSTful endpoints specific to nodes, following CRUD terminology and usage
