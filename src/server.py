@@ -1,5 +1,6 @@
-from json import dumps
+from json import dumps, loads
 
+from src.block import Block
 from src.blockchain import Blockchain
 
 '''
@@ -16,8 +17,14 @@ class Server:
         blocks = self.blockchain.getChain()
         return dumps(blocks), 200
 
-    def updateWithNewBlock(self, request):  # todo implement
-        pass
+    def updateWithNewBlock(self, request):
+        data = loads(request.json())
+        block = Block(data['index'], data['transactions'], data['timestamp'], data['previousHash'])
+        proof = data['hash']
+        newBlock = self.blockchain.addBlock(block, proof)
+        if not newBlock:
+            return 'block discarded by node', 409
+        return 'block added to chain', 202
 
     def readSingleBlock(self, index):
         block = self.blockchain.getBlock(index)
