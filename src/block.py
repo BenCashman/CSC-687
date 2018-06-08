@@ -28,6 +28,7 @@ class Block:
         self.previousHash = previousHash
         
         self.nonce = 0
+        self.hash = 0
         
     # ==========================================================================
     # public interface
