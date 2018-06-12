@@ -15,14 +15,24 @@ class Validator:
         return proof
     
     @staticmethod
-    def isValidProof(block, proof, difficulty):
+    def _isValidProof(block, proof, difficulty):
         return proof.startswith('0' * difficulty ) and proof == block.computeHash()
     
     @staticmethod
-    def checkChainValidity(chain):  # todo implement
-        pass
+    def checkChainValidity(chain, difficulty):
+        result = True
+        previous = '0'
+        for block in chain:
+            blockHash = block.hash
+            delattr(block, 'hash')
+            if not Validator.isValidProof(block, blockHash, difficulty) or previous != block.previousHash:
+                result = False
+                break
+            block.hash, previous = blockHash, blockHash
+        return result
 
     @staticmethod
-    def consensus(chain):  # todo implement
-        pass
+    def consensus(nodes, chain):
+        length = len(chain)
+        # bugbug needs implementation
     

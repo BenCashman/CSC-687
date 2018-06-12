@@ -1,7 +1,9 @@
 from json import dumps, loads
+from time import time
 
 from src.block import Block
 from src.blockchain import Blockchain
+from src.validator import Validator
 
 '''
 This class implements the necessary function for maintaining a blockchain, validating blocks, and generally
@@ -9,11 +11,12 @@ handling the details of the endpoints specified by a node in the TrustNet.
 '''
 
 class Server:
-    def __init__(self):
+    def __init__(self, difficulty):
+        self.difficulty = difficulty
         self.transactions = {}
         self.blockchain = Blockchain()
     
-    def readAllBlocks(self):
+    def readAllBlocks(self, nodes):
         blocks = self.blockchain.getChain()
         return dumps(blocks), 200
 
@@ -30,8 +33,15 @@ class Server:
         block = self.blockchain.getBlock(index)
         return dumps(block), 200
 
-    def createNewBlock(self):  # todo implement
-        pass
+    def createNewBlock(self):
+        if not self.transactions:
+            return False
+        lastBlock = self.lastBlock
+        newBlock = Block(index=lastBlock.index + 1, transactions=self.transactions, timestamp=time.timestamp(), previousHash = lastBlock.hash)
+        proof = Validator.proofOfWork(newBlock, self.difficulty)
+        self.blockchain.addBlock(newBlock, proof)
+        self.transactions = {}
+        return newBlock.index
 
     def createNewTransaction(self, data):
         requireds = [ 'id', 'request', 'sourceid', 'targetid']
