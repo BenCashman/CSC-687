@@ -33,9 +33,9 @@ class Blockchain:
         else:
             return 'invalid index {}'.format(index), 400
        
-    def getChain(self):
+    def getChain(self, nodes):
         Validator.checkChainValidity(self.chain)
-        Validator.consensus(self.chain)
+        Validator.consensus(nodes, self.chain)
         data = []
         for block in self.chain:
             if not block.sequence == 0:  # do not include genesis block

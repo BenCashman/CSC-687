@@ -6,6 +6,7 @@ from socket import gethostbyname, gethostname
 from sys import argv
 
 from src.server import Server
+from src.validator import Validator
 
 '''
 This code represents the public facing interface for a TrustNet network node.  It uses a Server object
@@ -33,6 +34,7 @@ HTTP response codes:
 
 users = {}
 nodes = set()
+difficulty = 2
 
 if len(argv) > 1:
     port = int(argv[1])
@@ -68,7 +70,7 @@ if len(argv) > 3:
         reached.add(node)
     nodes.update(reached)
     
-server = Server()
+server = Server(difficulty)
 
 # ==============================================================================
 # ReSTful endpoints specific to server, following CRUD terminology and usage
@@ -77,7 +79,7 @@ app = Flask(__name__)
 
 @app.route('/block', methods=['GET'])
 def blockGET():
-    return server.readAllBlocks()
+    return server.readAllBlocks(nodes)
 
 @app.route('/block', methods=['POST'])
 def blockPOST():
