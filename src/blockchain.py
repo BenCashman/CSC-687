@@ -1,6 +1,5 @@
 from json import dumps
 from src.block import Block
-from src.validator import Validator
 from time import time
 
 '''
@@ -9,10 +8,41 @@ can be grown by adding new blocks.
 '''
 
 class Blockchain:
-    def __init__(self):
+    def __init__(self, nodes):
+        self.nodes = nodes
+        self.difficulty = 2
         self.transactions = []
         self.chain = []
         self._createGenesisBlock()
+            
+    # ==========================================================================
+    # private methods
+    # ==========================================================================
+    def _createGenesisBlock(self):
+        block = Block(0, [], time(), '0')
+        self.chain.append(block)
+    
+    @classmethod
+    def _isValidProof(cls, block, difficulty, proof):
+        return proof.startswith('0' * difficulty ) and proof == block.computeHash()
+    
+    @classmethod
+    def _checkChainValidity(cls, chain):
+        result = True
+        previous = '0'
+        for block in chain:
+            blockHash = block.hash
+            delattr(block, 'hash')
+            if not block.isValidProof(block, blockHash) or previous != block.previousHash:
+                result = False
+                break
+            block.hash, previous = blockHash, blockHash
+        return result
+
+    @classmethod
+    def _consensus(cls, chain):
+        length = len(chain)
+        # bugbug needs implementation
     
     # ==========================================================================
     # public interface
@@ -21,7 +51,7 @@ class Blockchain:
         previous = self.lastBlock.currentHash
         if previous != block.previousHash:
             return False
-        if not Validator.isValidProof(block, proof):
+        if not Blockchain._isValidProof(block, self.difficulty, proof):
             return False
         block.currentHash = proof
         self.chain.append(block)
@@ -34,21 +64,22 @@ class Blockchain:
             return 'invalid index {}'.format(index), 400
        
     def getChain(self, nodes):
-        Validator.checkChainValidity(self.chain)
-        Validator.consensus(nodes, self.chain)
+        Blockchain._checkChainValidity(self.chain)
+        Blockchain._consensus(nodes, self.chain)
         data = []
         for block in self.chain:
             if not block.sequence == 0:  # do not include genesis block
                 data.append(block.__dict__)
         return dumps({ 'length' : len(data), 'chain' : data })
     
+    def proofOfWork(self, block):
+        block.nonce = 0
+        proof = block.computeHash()
+        while not proof.startswith('0' * self.difficulty):
+            block.nonce += 1
+            proof = block.computeHash()
+        return proof
+    
     @property
     def lastBlock(self):
         return self.chain[-1]
-     
-    # ==========================================================================
-    # private methods
-    # ==========================================================================
-    def _createGenesisBlock(self):
-        block = Block(0, [], time(), '0')
-        self.chain.append(block)

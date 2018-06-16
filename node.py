@@ -6,7 +6,7 @@ from socket import gethostbyname, gethostname
 from sys import argv
 
 from src.server import Server
-from src.validator import Validator
+#from src.validator import Validator
 
 '''
 This code represents the public facing interface for a TrustNet network node.  It uses a Server object
@@ -34,7 +34,6 @@ HTTP response codes:
 
 users = {}
 nodes = set()
-difficulty = 2
 
 if len(argv) > 1:
     port = int(argv[1])
@@ -70,7 +69,7 @@ if len(argv) > 3:
         reached.add(node)
     nodes.update(reached)
     
-server = Server(difficulty)
+server = Server(nodes)
 
 # ==============================================================================
 # ReSTful endpoints specific to server, following CRUD terminology and usage
@@ -89,7 +88,7 @@ def blockPOST():
 def blockIndexGET(index):
     return server.readSingleBlock(index)
 
-@app.route('/mine', methods=['POST'])
+@app.route('/mine', methods=['GET'])
 def minePOST():
     return server.createNewBlock()
 
