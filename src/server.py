@@ -3,7 +3,6 @@ from time import time
 
 from src.block import Block
 from src.blockchain import Blockchain
-from src.validator import Validator
 
 '''
 This class implements the necessary function for maintaining a blockchain, validating blocks, and generally
@@ -11,10 +10,12 @@ handling the details of the endpoints specified by a node in the TrustNet.
 '''
 
 class Server:
-    def __init__(self, difficulty):
-        self.difficulty = difficulty
+    def __init__(self, nodes):
         self.transactions = {}
-        self.blockchain = Blockchain()
+        self.blockchain = Blockchain(nodes)
+        
+    def lastBlock(self):
+        return self.blockchain.lastBlock
     
     def readAllBlocks(self, nodes):
         blocks = self.blockchain.getChain()
@@ -35,13 +36,12 @@ class Server:
 
     def createNewBlock(self):
         if not self.transactions:
-            return False
-        lastBlock = self.lastBlock
-        newBlock = Block(index=lastBlock.index + 1, transactions=self.transactions, timestamp=time.timestamp(), previousHash = lastBlock.hash)
-        proof = Validator.proofOfWork(newBlock, self.difficulty)
+            return 'no pending transactions', 404
+        newBlock = Block(self.blockchain.lastBlock.index + 1, self.transactions, time(), self.blockchain.lastBlock.currentHash)
+        proof = self.blockchain.proofOfWork(newBlock)
         self.blockchain.addBlock(newBlock, proof)
         self.transactions = {}
-        return newBlock.index
+        return 'new block created and added to chain', 201
 
     def createNewTransaction(self, data):
         requireds = [ 'id', 'request', 'sourceid', 'targetid']
