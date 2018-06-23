@@ -4,49 +4,21 @@ from json import dumps, loads
 from requests import get, post
 from socket import gethostbyname, gethostname
 from sys import argv
-
-from src.server import Server
-#from src.validator import Validator
-
-'''
-This code represents the public facing interface for a TrustNet network node.  It uses a Server object
-to implement the internal function, simply passing data from the endpoints to that instance.  Additional
-action that needs to take place between nodes on the TrustNet are dealt with here.  Further, it
-initializes the Flask application, defines its endpoints, and starts it running.
-
-To run the TrustNet network:
-    To start the first node, type in:
-        python3 node.py 8001
-        
-    To start subsequent nodes, type in:
-        python3 node.py 800x <hostname> <port>
-        
-        where <hostname> is the previous node's host, and <port> is its port
-        
-    Each time a node is added, output from each running node indicates that a new node has joined TrustNet
-    
-HTTP response codes:  
-  
-    200           request handled OK
-    201           entity created
-    400           bad request, invalid parameters, etc.
-'''
-
-users = {}
-nodes = set()
+from time import time
 
 if len(argv) > 1:
     port = int(argv[1])
 else:
     port = 8001
 local = gethostbyname(gethostname()) + ':' + str(port)
-  
+
+nodes = set()
 if len(argv) > 3:
     if argv[2] == 'localhost':
         remote = gethostbyname(gethostname()) + ':' + argv[3]
     else:
         remote = argv[2] + ':' + argv[3]
-   
+        
     reached = set()
     unreached = set()
     unreached.add(remote)
@@ -60,7 +32,7 @@ if len(argv) > 3:
             url = 'http://localhost:' + p + '/node'
         else:
             url = 'http://{}/node'.format(node)
-        post(url, json=body, headers={ 'Content-type':'application/json' })
+        post(url, json=body, headers={ 'content-type':'application/json' })
         response = get(url)
         addresses = loads(response.text)
         for address in addresses:
@@ -68,93 +40,195 @@ if len(argv) > 3:
         nodes.add(node)
         reached.add(node)
     nodes.update(reached)
+
+# ==============================================================================
+# define Block class
+# ==============================================================================
+class Block:
+    def __init__(self, index, transactions, timestamp, previousHash, nonce=0):
+        self.index = index
+        self.transactions = transactions
+        self.timestamp = timestamp
+        self.previousHash = previousHash
+        self.nonce = nonce
+
+    def computeHash(self):
+        timestamp = self.timestamp
+        self.timestamp = 0
+        data = dumps(self.__dict__, sort_keys=True)
+        encoding = sha256(data.encode()).hexdigest()
+        self.timestamp = timestamp
+        return encoding
+
+# ==============================================================================
+# define BlockChain class
+# ==============================================================================
+class Blockchain:
+    difficulty = 2
+
+    def __init__(self):
+        self.unconfirmedTransactions = []
+        self.chain = []
+        self.createGenesisBlock()
+
+    def createGenesisBlock(self):
+        genesisBlock = Block(0, [], time(), '0')
+        genesisBlock.currentHash = genesisBlock.computeHash()
+        self.chain.append(genesisBlock)
+
+    @property
+    def lastBlock(self):
+        return self.chain[-1]
+
+    def addBlock(self, block, proof):
+        previousHash = self.lastBlock.currentHash
+        if previousHash != block.previousHash:
+            return False
+        if not Blockchain.isValidProof(block, proof):
+            return False
+        block.currentHash = proof
+        self.chain.append(block)
+        return True
+
+    def proofOfWork(self, block):
+        block.nonce = 0
+        computedHash = block.computeHash()
+        while not computedHash.startswith('0' * Blockchain.difficulty):
+            block.nonce += 1
+            computedHash = block.computeHash()
+        return computedHash
+
+    def addNewTransaction(self, transaction):
+        self.unconfirmedTransactions.append(transaction)
+
+    @classmethod
+    def isValidProof(cls, block, blockHash):
+        lhs = blockHash.startswith('0' * Blockchain.difficulty)
+        computedHash = block.computeHash()
+        rhs = blockHash == computedHash
+        return lhs and rhs
+
+    @classmethod
+    def checkChainValidity(cls, chain):
+        previousHash = '0'
+        for block in chain:
+            blockHash = block.currentHash
+            delattr(block, 'currentHash')
+            timestamp = block.timestamp
+            block.timestamp = 0
+            if not cls.isValidProof(block, blockHash) or previousHash != block.previousHash:
+                return False
+            block.currentHash, previousHash, block.timestamp = blockHash, blockHash, timestamp
+        return True
+
+    def mine(self):
+        if not self.unconfirmedTransactions:
+            return False
+        lastBlock = self.lastBlock
+        newBlock = Block(index=lastBlock.index + 1, transactions=self.unconfirmedTransactions,
+                timestamp=time(), previousHash=lastBlock.currentHash)
+        proof = self.proofOfWork(newBlock)
+        self.addBlock(newBlock, proof)
+        self.unconfirmedTransactions = []
+        announceNewBlock(newBlock)
+        return newBlock.index
     
-server = Server(nodes)
-
 # ==============================================================================
-# ReSTful endpoints specific to server, following CRUD terminology and usage
-# ==============================================================================
+# define global variables
+# ==============================================================================   
 app = Flask(__name__)
+blockchain = Blockchain()
 
-@app.route('/block', methods=['GET'])
-def blockGET():
-    return server.readAllBlocks(nodes)
+# ==============================================================================
+# define global functions
+# ==============================================================================
+def getConsensus():
+    global blockchain
+    longestChain = None
+    currentLength = len(blockchain.chain)
+    for node in nodes:
+        response = get('http://{}/chain'.format(node))
+        length = response.json()['length']
+        chain = response.json()['chain']
+        if length > currentLength and blockchain.checkChainValidity(chain):
+            currentLength = length
+            longestChain = chain
+    if longestChain:
+        blockchain = longestChain
+        return True
+    return False
 
-@app.route('/block', methods=['POST'])
-def blockPOST():
-    return server.updateWithNewBlock(request)
-
-@app.route('/block/<index>', methods=['GET'])
-def blockIndexGET(index):
-    return server.readSingleBlock(index)
-
-@app.route('/mine', methods=['GET'])
-def minePOST():
-    return server.createNewBlock()
+def announceNewBlock(block):
+    for node in nodes:
+        h, p = node.split(':')
+        if h in local:
+            url = 'http://localhost:' + p + '/block'
+        else:
+            url = 'http://{}/block'.format(node)
+        post(url, data=dumps(block.__dict__, sort_keys=True), headers={ 'Content-type':'application/json' })
 
 # ==============================================================================
 # ReSTful endpoints specific to nodes, following CRUD terminology and usage
 # ==============================================================================
 @app.route('/node', methods=['GET'])
-def nodeGET():
+def getAllNodes():
     return dumps(list(nodes)), 200
 
 @app.route('/node', methods=['POST'])
-def nodePOST():
+def addNewNode():
     body = request.get_json()
     node = body['node']
-    host, port = node.split(':')
-    nodes.add(host + ':' + port)
-    return 'OK', 200
+    if not node in nodes:
+        nodes.add(node)
+        return 'OK', 201
+    else:
+        return 'node already added', 200
+
+# ==============================================================================
+# ReSTful endpoints specific to transactions, following CRUD terminology and usage
+# ==============================================================================
+@app.route('/transaction', methods=['GET'])
+def getPendingTransactions():
+    return dumps(blockchain.unconfirmedTransactions)
 
 @app.route('/transaction', methods=['POST'])
-def transactionPOST():
-    data = request.get_json()
-    if not 'id' in data:
-        data['id'] = sha256(dumps(data).encode()).hexdigest()
-    message, rc = server.createNewTransaction(data)
-    if rc == 201:
-        for node in nodes:
-            h, p = node.split(':')
-            if h in local:
-                url = 'http://localhost:' + p + '/transaction'
-            else:
-                url = 'http://{}/transaction'.format(node)
-            post(url, json=data, headers={ 'Content-type':'application/json' })
-    return message, rc
+def addNewTransaction():
+    transactionData = request.get_json()
+    requiredFields = [ 'request', 'sourceid', 'targetid' ]
+    for field in requiredFields:
+        if not transactionData.get(field):
+            return 'transaction missing {} field'.format(field), 404
+    transactionData['timestamp'] = time()
+    blockchain.addNewTransaction(transactionData)
+    return 'transaction added successfully ', 201
 
 # ==============================================================================
-# debugging endpoints for prototype use
+# ReSTful endpoints specific to chains, following CRUD terminology and usage
 # ==============================================================================
-# endpoint to dump users
-@app.route('/user', methods=['GET'])
-def getUsers():
-    return "/user:getUsers(" + dumps(users) + ")", 200
+@app.route('/chain', methods=['GET'])
+def getChain():
+    getConsensus()
+    chainData = []
+    for block in blockchain.chain:
+        chainData.append(block.__dict__)
+    return dumps({ 'length': len(chainData), 'chain': chainData })
 
-# endpoint to register a new user
-@app.route('/user', methods=['POST'])
-def addUser():
-    body = request.get_json()
-    handle = body['handle']
-    ip = body['ip']
-    uid = sha256((handle + ip).encode()).hexdigest()
-    if uid in users.keys():
-        return "id is not unique, try a new handle", 400
-    users[id] = body
-    return "/user:addUser(" + id + ")", 201
+@app.route('/mine', methods=['GET'])
+def mineTransactions():
+    result = blockchain.mine()
+    if not result:
+        return 'No transactions to mine'
+    return 'Block #{} is mined'.format(result), 201
 
-# endpoint to query id of a user by its handle
-@app.route('/user/<user>', methods=['GET'])
-def getUserIdByHandle(user):
-    for uid in users.keys():
-        if users[id]['handle'] == user:
-            return uid, 200
-    return "user " + user + " not registered", 400
-
-# endpoint to dump transactions
-@app.route('/transaction', methods=['GET'])
-def transactionGET():
-    return server.getTransactions()
+@app.route('/block', methods=['POST'])
+def validateAndAddBlock():
+    blockData = request.get_json()
+    block = Block(blockData['index'], blockData['transactions'], blockData['timestamp'], blockData['previousHash'], blockData['nonce'])
+    proof = blockData['currentHash']
+    added = blockchain.addBlock(block, proof)
+    if not added:
+        return 'The block was discarded by the node', 400
+    return 'Block added to the chain', 201
 
 # run Flask application
-app.run(port=port, debug=True)
+app.run(port=port, debug=False)
