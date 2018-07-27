@@ -79,7 +79,7 @@ class Blockchain:
     @property
     def lastBlock(self):
         return self.chain[-1]
-
+# FUnc to add new blocks to the chain, must connect to previous block
     def addBlock(self, block, proof):
         previousHash = self.lastBlock.currentHash
         if previousHash != block.previousHash:
@@ -89,7 +89,7 @@ class Blockchain:
         block.currentHash = proof
         self.chain.append(block)
         return True
-
+#Function to enable mining of blocks - note the nonce value
     def proofOfWork(self, block):
         block.nonce = 0
         computedHash = block.computeHash()
@@ -100,7 +100,8 @@ class Blockchain:
 
     def addNewTransaction(self, transaction):
         self.unconfirmedTransactions.append(transaction)
-
+        
+#func to determine if a minner's proof of work is valid
     @classmethod
     def isValidProof(cls, block, blockHash):
         lhs = blockHash.startswith('0' * Blockchain.difficulty)
